@@ -67,16 +67,6 @@ class GraphMixin:
 class Graph(GraphMixin):
     pass
 
-class WeightedGraph(GraphMixin):
-    pass
-
-class UndirectedGraph(GraphMixin):
-    def add(self, u: int, v: int, w: float, tag: str = ''):
-        super().add(u, v, w, tag, directed=False)
-
-class AcyclicGraph(GraphMixin):
-    pass
-
 class DAG(AcyclicGraph):
     """Directed Acyclic Graph"""
     def is_dag(self) -> bool:
@@ -102,91 +92,3 @@ class DAG(AcyclicGraph):
                     return False
         return True
   
-
-class Tree(AcyclicGraph):
-    def is_tree(self) -> bool:
-        indegree = {v: 0 for v in self.vertex}
-        for (u, v) in self.edges:  indegree[v] += 1
-        roots = [v for v, d in indegree.items() if d == 0]
-        if len(roots) != 1: return False
-        root = roots[0]
-        visited = set()
-        def dfs(v):
-            visited.add(v)
-            for (u, w) in self.edges:
-                if u == v and w not in visited:
-                    dfs(w)
-        dfs(root)
-        return len(visited) == len(self.vertex)
-
-
-class Forest(Tree):
-    """Forest: set of Tree"""
-
-from collections import deque
-
-class BipartiteGraph(GraphMixin):
-
-    def add(self, u: int, v: int, w: float, tag: str = '', directed: bool = False):
-        super().add(u, v, w, tag, directed)
-        if not self.is_bipartite():
-            self.del_edge(u, v, directed)
-            raise ValueError(f"Adding edge ({u},{v}) breaks bipartiteness")
-
-    def is_bipartite(self) -> bool:
-        color = {}
-        for start in self.vertex:
-            if start not in color:
-                queue = deque([start])
-                color[start] = 0
-                while queue:
-                    u = queue.popleft()
-                    for (x, y) in self.edges:
-                        if x == u: v = y
-                        elif y == u: v = x
-                        else: continue
-                        if v not in color:
-                            color[v] = 1 - color[u]
-                            queue.append(v)
-                        elif color[v] == color[u]:  return False
-        self.left = {k for k, v in color.items() if v == 0}
-        self.right = {k for k, v in color.items() if v == 1}
-        return True
-
-
-
-
-
-class KnowledgeGraph(GraphMixin):
-    """RDF-style knowledge graph (subject --predicate--> object)"""
-
-
-    def add_entity(self, name: str, entity_type: str = "") -> int:
-        """Add an entity with optional type, returns assigned ID"""
-        id=self.dim
-        self.add_vertex(id, f"{name} ({entity_type})" if entity_type else name)
-        return id
-    
-    def add_relation(self, subj_id: int, obj_id: int, predicate: str, weight: float = 1.0):
-        """Add a labeled relation between entities"""
-        self.add_arc(subj_id, obj_id, weight, predicate)
-    
-    def query(self, subj: str = None, pred: str = None, obj: str = None) -> list:
-        """Basic SPARQL-like triple pattern matching"""
-        results = []
-        for (u, v), rels in self.edges.items():
-            subj_match = not subj or subj.lower() in self.vertex[u].lower()
-            obj_match = not obj or obj.lower() in self.vertex[v].lower()
-            
-            if subj_match and obj_match:
-                for w, p in rels:
-                    if not pred or pred.lower() in p.lower():
-                        results.append((self.vertex[u], p, self.vertex[v]))
-        return results
-    
-    def __str__(self) -> str:
-        out = [f"Knowledge Graph - Entities: {self.dim}, Relations: {len(self.edges)}"]
-        for (u, v), rels in self.edges.items():
-            for w, p in rels:
-                out.append(f"{self.vertex[u]} --[{p}]--> {self.vertex[v]}")
-        return "\n".join(out)
