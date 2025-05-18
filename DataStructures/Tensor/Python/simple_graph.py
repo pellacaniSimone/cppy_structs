@@ -77,8 +77,8 @@ class GraphMixin:
     """
         Density:
         - d==0 -> empty
-        - d>0  -> dense
-        - d<0  -> sparse
+        - d>1  -> dense
+        - d<1  -> sparse
     """
     def graph_density(self):self.density = len(self.edges)/ len(self.vertex) if self.vertex else 0
     def increase_size(self):self.dim+=1;self.graph_density()
