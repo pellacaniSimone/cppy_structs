@@ -1,4 +1,73 @@
 
+"""
+
+Author: Simone Pellacani (pellacanisimone2017@gmail.com)
+Brief: This module provides graph data structures and algorithms.
+Version: 0.0.1
+Date: 2025-05-10
+
+Copyright (c) 2025
+
+Refactored and documented using LLMs
+
+This module provides a foundational graph library with support for directed and undirected graphs,
+including specialized Directed Acyclic Graphs (DAGs). It features a mixin pattern implementation
+with `GraphMixin` as the base class containing core graph functionality, which is then inherited
+by concrete graph implementations.
+
+The `GraphMixin` class serves as the core implementation, providing functionalities for:
+- Vertex and edge management (addition/removal)
+- Graph density calculation
+- Graph transposition
+- Matrix representation conversion
+- String representation of graphs
+
+The `Graph` class inherits from `GraphMixin` and acts as a general-purpose graph implementation
+supporting both directed and undirected edges with optional weights and tags.
+
+The `DAG` class is a specialized subclass of `GraphMixin` for Directed Acyclic Graphs, featuring
+cycle detection through depth-first search.
+
+Key Features:
+    - Support for both directed and undirected edges
+    - Vertex and edge tagging system for metadata storage
+    - Automatic density calculation (sparse/dense graphs)
+    - Graph transposition operation
+    - Conversion to adjacency matrix representation
+    - Cycle detection for DAG validation
+    - Clean string representation of graph structure
+
+Graph Representation:
+    - Vertices: Stored as dictionary keys with optional tags
+    - Edges: Stored as dictionary of tuples (source, target) with weight and tag lists
+    - Density: Calculated as edges/vertices ratio (0=empty, >0=dense, <0=sparse)
+
+Usage:
+    - Import the desired class (`Graph` or `DAG`) from the module
+    - Create instances and add vertices/edges
+    - Perform graph operations and validations
+    - Convert to matrix representation when needed
+
+Example:
+    >>> graph = Graph()
+    >>> graph.add_vertex(0, 'start')
+    >>> graph.add_vertex(1, 'middle')
+    >>> graph.add_edge(0, 1, 2.5, 'connection')
+    >>> print(graph)
+    >>> matrix = graph.to_matrix()
+
+    >>> dag = DAG()
+    >>> dag.add_vertex(0)
+    >>> dag.add_vertex(1)
+    >>> dag.add_arc(0, 1, 1.0, 'dependency')
+    >>> print(dag.is_dag())  # Should return True
+
+"""
+
+
+
+
+
 class GraphMixin:
     # used here results in shared mem var
     def __init__(self):
