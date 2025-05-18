@@ -67,7 +67,7 @@ class GraphMixin:
 class Graph(GraphMixin):
     pass
 
-class DAG(AcyclicGraph):
+class DAG(GraphMixin):
     """Directed Acyclic Graph"""
     def is_dag(self) -> bool:
         visited = set()
