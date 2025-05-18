@@ -417,6 +417,79 @@ class TestIntegrationScenarios(unittest.TestCase):
         print(f"Large {size}x{size} matrix multiplication took {end_time - start_time:.4f} seconds")
 
 
+from graph import Graph,DAG
+
+class TestGraph(unittest.TestCase):
+    def setUp(self):
+        self.g = Graph()
+        self.g.add_vertex(0)
+        self.g.add_vertex(1)
+        self.g.add_vertex(2)
+        self.g.add_arc(0, 1, 1.0, 'a')
+        self.g.add_edge(1, 2, 2.0, 'b')
+        
+        self.dag = DAG()
+        self.dag.add_vertex(0)
+        self.dag.add_vertex(1)
+        self.dag.add_vertex(2)
+        self.dag.add_arc(0, 1, 1.0, 'a')
+        self.dag.add_arc(1, 2, 2.0, 'b')
+
+    def test_graph_initialization(self):
+        self.assertEqual(self.g.dim, 3)
+        self.assertAlmostEqual(self.g.density, 3/3)
+        
+    def test_vertex_operations(self):
+        self.g.add_vertex(3, 'new')
+        self.assertEqual(self.g.dim, 4)
+        self.assertIn(3, self.g.vertex)
+        self.assertEqual(self.g.vertex[3], 'new')
+        
+        self.g.del_vertex(3)
+        self.assertEqual(self.g.dim, 3)
+        self.assertNotIn(3, self.g.vertex)
+
+    def test_edge_operations(self):
+        self.g.add_edge(0, 2, 3.0, 'c')
+        self.assertIn((0, 2), self.g.edges)
+        self.assertIn((2, 0), self.g.edges)
+        
+        self.g.del_edge(0, 2, directed=False)
+        self.assertNotIn((0, 2), self.g.edges)
+        self.assertNotIn((2, 0), self.g.edges)
+
+    def test_transpose(self):
+        gt = self.g.t()
+        self.assertEqual(gt.dim, 3)
+        self.assertIn((1, 0), gt.edges)
+        self.assertIn((2, 1), gt.edges)
+
+    def test_to_matrix(self):
+        print(self.g)
+        mat = self.g.to_matrix()
+        print(mat)
+        self.assertIsInstance(mat, Matrix)
+        # Verifica alcuni valori della matrice
+        self.assertEqual(mat[0][1], 1.0)
+        self.assertEqual(mat[1][2], 2.0)
+        self.assertEqual(mat[2][1], 2.0)  # Perché è un edge bidirezionale
+
+    def test_dag_property(self):
+        self.assertTrue(self.dag.is_dag())
+        
+        # Aggiungiamo un ciclo per testare
+        self.dag.add_arc(2, 0, 3.0, 'cycle')
+        self.assertFalse(self.dag.is_dag())
+
+    def test_str_representation(self):
+        s = str(self.g)
+        self.assertIn("Graph - Size: 3", s)
+        self.assertIn("0 --([(1.0, 'a')])--> 1", s)
+        self.assertIn("1 --([(2.0, 'b')])--> 2", s)
+
+
+
+
 # Run all tests
 if __name__ == "__main__":
     unittest.main()
