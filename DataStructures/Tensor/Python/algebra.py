@@ -57,28 +57,17 @@ Example:
 
 from array import array
 import random, os, math
-from typing import List, Tuple, Union, 
+from typing import List, Tuple, Union
+
 
 
 Size = Union[List[int], Tuple[int, ...]]
 
 
 class GenericTensor(array):
-
-    @staticmethod
-    def __calculate_linear_index(shape: Tuple[int, ...], indices: Tuple[int, ...]) -> int:
-        index = 0
-        product = 1
-        for idx, dim in zip(reversed(indices), reversed(shape)):
-            if idx < 0 or idx >= dim:
-                raise IndexError(f"Index {idx} out of bounds for dimension {dim}")
-            index += idx * product
-            product *= dim
-        return index
-
     _allowed_commands = {'zeros', 'ones', 'rand', 'randn'}
 
-    def __new__(cls, shape: Size, command: str = 'zeros', data: List[float] = None) -> "GenericTensor":
+    def __new__(cls, shape: Size, command: str = 'zeros', data: List[float] = None) -> 'GenericTensor':
         shape_tuple = tuple(shape)
         total_elements = 1
         for dim in shape_tuple:
@@ -104,8 +93,84 @@ class GenericTensor(array):
 
         obj = super().__new__(cls, 'd', initial_data)
         obj.shape = tuple((1,)) if total_elements == 1 else shape_tuple 
-        obj.size=total_elements
+        obj.size = total_elements
+        obj._strides = cls._compute_strides(obj.shape)
         return obj
+
+    @staticmethod
+    def _compute_strides(shape: Tuple[int, ...]) -> Tuple[int, ...]:
+        strides = [1]
+        for dim in reversed(shape[1:]):
+            strides.insert(0, strides[0] * dim)
+        return tuple(strides)
+
+    def _flatten_index(self, idxs: Tuple[int, ...]) -> int:
+        if len(idxs) != len(self.shape):
+            raise IndexError("Incorrect number of indices")
+        return sum(i * s for i, s in zip(idxs, self._strides))
+    
+    def __getitem__(self, index):
+        if isinstance(index, int):
+            index = (index,)
+        if len(index) < len(self.shape):
+            sub_shape = self.shape[len(index):]
+            base_offset = self._flatten_index(index + (0,) * (len(self.shape) - len(index)))
+            sub_size = 1
+            for dim in sub_shape:
+                sub_size *= dim
+            sub_data = [array.__getitem__(self, base_offset + i) for i in range(sub_size)]
+            return GenericTensor(sub_shape, data=sub_data)
+        return array.__getitem__(self, self._flatten_index(index))
+    def __str__(self) -> str:
+        def build_string(indices: List[int], depth: int) -> str:
+            if depth == len(self.shape):
+                return f"{self[tuple(indices)]:.2f}"
+            parts = []
+            for i in range(self.shape[depth]):
+                new_indices = indices + [i]
+                part = build_string(new_indices, depth + 1)
+                parts.append(part)
+            return "[ " + ", ".join(parts) + " ]"
+        return build_string([], 0)
+
+    def save(self:'GenericTensor', filename: str) -> None:
+        with open(filename, 'w') as f:
+            f.write(f"{len(self.shape)}\n")
+            f.write(" ".join(map(str, self.shape)) + "\n")
+            f.write(" ".join(f"{val:.6f}" for val in self) + "\n")
+
+    @classmethod
+    def load(cls:'GenericTensor', filename: str) -> 'GenericTensor':
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"The file {filename} does not exist")
+        with open(filename, 'r') as f:
+            num_dims = int(f.readline().strip())
+            shape = tuple(map(int, f.readline().strip().split()))
+            if len(shape) != num_dims:
+                raise ValueError("Mismatch in the number of dimensions")
+            data = list(map(float, f.readline().strip().split()))
+            return cls(shape, data=data)
+
+    def __setitem__(self, index, value):
+        if isinstance(index, int):
+            index = (index,)
+        if len(index) != len(self.shape):
+            raise IndexError("Incorrect number of indices")
+        flat_index = self._flatten_index(index)
+        super().__setitem__(flat_index, value)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(shape={self.shape}, data={list(self)})"
+
+    @classmethod
+    def __reshape__(cls, T: 'GenericTensor') -> 'GenericTensor':
+        if T.size == 1:
+            if T is cls:
+                s = (1, T.shape[0])  # row
+            else: 
+                s = (T.shape[0], 1)  # column
+            return type(GenericTensor)(s, data=list(T))
+        return T
 
     def __len__(self):
         total = 1
@@ -120,56 +185,15 @@ class GenericTensor(array):
         if self.shape != B.shape:
             raise ValueError("Shapes must match for addition")
         summed = [A + B for A, B in zip(self, B)]
-        return GenericTensor(self.shape, data=summed)
+        return type(self)(self.shape, data=summed)
 
-    def __getitem__(self, key: Union[int, Tuple[int, ...]]) -> float:
-        if isinstance(key, tuple):
-            if len(key) != len(self.shape):
-                raise IndexError(f"Expected {len(self.shape)} indices, got {len(key)}")
-            linear_index = GenericTensor.__calculate_linear_index(self.shape, key)
-            return super().__getitem__(linear_index)
-        else:
-            return super().__getitem__(key)
-
-    def __setitem__(self, key: Union[int, Tuple[int, ...]], value: float) -> None:
-        if isinstance(key, tuple):
-            if len(key) != len(self.shape):
-                raise IndexError(f"Expected {len(self.shape)} indices, got {len(key)}")
-            linear_index = GenericTensor.__calculate_linear_index(self.shape, key)
-            super().__setitem__(linear_index, value)
-        else:
-            super().__setitem__(key, value)
-
-    def __str__(self) -> str:
-        def build_string(indices: List[int], depth: int) -> str:
-            if depth == len(self.shape):
-                return f"{self[tuple(indices)]:.2f}"
-            parts = []
-            for i in range(self.shape[depth]):
-                new_indices = indices + [i]
-                part = build_string(new_indices, depth + 1)
-                parts.append(part)
-            return "[ " + ", ".join(parts) + " ]"
-        return build_string([], 0)
-
-    def save(self, filename: str) -> None:
-        with open(filename, 'w') as f:
-            f.write(f"{len(self.shape)}\n")
-            f.write(" ".join(map(str, self.shape)) + "\n")
-            f.write(" ".join(f"{val:.6f}" for val in self) + "\n")
-
-    @classmethod
-    def load(cls, filename: str) -> "GenericTensor":
-        if not os.path.exists(filename):
-            raise FileNotFoundError(f"The file {filename} does not exist")
-        with open(filename, 'r') as f:
-            num_dims = int(f.readline().strip())
-            shape = tuple(map(int, f.readline().strip().split()))
-            if len(shape) != num_dims:
-                raise ValueError("Mismatch in the number of dimensions")
-            data = list(map(float, f.readline().strip().split()))
-            return cls(shape, data=data)
-
+    def __sub__(self, B):
+        if not isinstance(B, GenericTensor):
+            return NotImplemented
+        if self.shape != B.shape:
+            raise ValueError("Shapes must match for addition")
+        subbed = [A - B for A, B in zip(self, B)]
+        return type(self)(self.shape, data=subbed)
 
     def __mul__(self, B: Union[float, int, "GenericTensor"]) -> "GenericTensor":
         """
@@ -183,56 +207,62 @@ class GenericTensor(array):
             result_data = [x * y for x, y in zip(self, B)]
         else:
             raise TypeError("Unsupported operand type(s) for *")
-        return GenericTensor(self.shape, data=result_data)
-    
-    @classmethod
-    def __reshape__(cls , T: "GenericTensor"=None,) -> "GenericTensor":
-        if T.size == 1:
-            if T is cls:
-                s = (1, T.shape[0]) # raw
-            else: 
-                s = (T.shape[0], 1) # column
-            return GenericTensor(s, data=list(T))
-        else:
-            return T
+        return type(self)(self.shape, data=result_data)
 
     def __matmul__(self, B: "GenericTensor") -> "GenericTensor":
         A_shape = self.shape
         B_shape = B.shape
         A_view = self.__reshape__(self)
         B_view = self.__reshape__(B)
+
+        # Check alignment condition
         if A_view.shape[-1] != B_view.shape[0]:
             raise ValueError(f"Shapes not aligned for matrix multiplication: {A_shape} and {B_shape}")
+        
+        # Calculate output shape
         output_shape = A_view.shape[:-1] + B_view.shape[1:]
         
+        # Generate code to handle n-dimensional GenericTensor multiplication
         code_lines = []
         indent = ""
         loop_indices = []
         total_loops = len(output_shape)
+
+        # Create nested loops for each dimension in output shape
         for idx, dim in enumerate(output_shape):
             var = f"i{idx}"
             loop_indices.append(var)
             code_lines.append(f"{indent}for {var} in range({dim}):")
             indent += "    "
-          
+
+        # Generate inner computation
         sum_lines = []
         sum_lines.append(f"{indent}s = 0.0")
         k_dim = A_view.shape[-1]  # Shared dimension for summation
         sum_lines.append(f"{indent}for k in range({k_dim}):")
         
+        # Generate proper indexing for A and B GenericTensors
         a_idx = [f"i{i}" for i in range(len(A_view.shape)-1)] + ["k"]
         b_idx = ["k"] + [f"i{i}" for i in range(len(A_view.shape)-1, total_loops)]
+        
         sum_lines.append(f"{indent}    s += A_view[{', '.join(a_idx)}] * B_view[{', '.join(b_idx)}]")
         sum_lines.append(f"{indent}result.append(s)")
+
         code_lines.extend(sum_lines)
         exec_code = "\n".join(code_lines)
+
+        # Execute the generated code
         local_vars = {"A_view": A_view, "B_view": B_view, "result": []}
         exec(exec_code, {}, local_vars)
 
+        # Special case for vector-vector multiplication (should return scalar)
         if len(A_shape) == 1 and len(B_shape) == 1:
-            return GenericTensor((1,), data=local_vars["result"])
+            return type(self)((1,), data=local_vars["result"])
         
-        return GenericTensor(output_shape, data=local_vars["result"])
+        return type(self)(output_shape, data=local_vars["result"])
+
+
+
 
 class Tensor(GenericTensor):
     def __new__(cls, shape: Size, command: str = 'zeros', data: List[float] = None) -> "Tensor":
@@ -256,7 +286,7 @@ class Tensor(GenericTensor):
         return Tensor(result.shape, data=list(result))
 
 
-class Matrix(Tensor):
+class Matrix(GenericTensor):
     def __new__(cls, shape, command: str = 'zeros', data: List[float] = None) -> "Matrix":
         return super().__new__(cls, shape, command, data)
     
@@ -267,6 +297,7 @@ class Matrix(Tensor):
     def __mul__(self, B: Union[float, int, "Matrix"]) -> 'Matrix':
         result = super().__mul__(B)
         return Matrix(result.shape, data=list(result))
+
 
     @classmethod
     def __reshape__(cls, T: "Matrix" = None) -> 'Matrix':
@@ -291,7 +322,24 @@ class Matrix(Tensor):
         data_t = [self[i, j] for j in range(cols) for i in range(rows)]
         return Matrix((cols, rows), data=data_t)
 
-class Vector(Tensor):
+    # Numeric should be here 
+
+    def to_graph(self, weighted=True) :
+        from simple_graph import Graph
+        """Return graph"""
+        g = Graph()
+        for i in range(self.rows):
+            for j in range(self.cols):
+                g.add_vertex(i)
+                g.add_vertex(j)
+                print(i," -> ", j)
+                if self[i][j]!=0:
+                    g.add(i,j,self[i][j])
+        return g
+
+
+
+class Vector(GenericTensor):
     def __new__(cls, shape: Size=None, command: str = 'zeros', data: List[float] = None ) -> "Vector":
         shape = len(data) if shape is None else shape
         return super().__new__(cls, (shape,), command, data)
@@ -314,11 +362,17 @@ class Vector(Tensor):
         return Vector(result.shape, data=list(result))
 
     def norm(self, taste: str = 'euclidean') -> float:
-        if taste == 'euclidean':
+        if taste == 'euclidean': # ||x||₂
             return math.sqrt(sum(v**2 for v in self))
-        elif taste == 'abs':
+        elif taste == 'abs': # ||x||₁
             return sum(abs(v) for v in self)
+        elif taste == 'max':  # ||x||∞
+            return max(abs(v) for v in self)
         else:
             raise ValueError("Not permitted")
+        
+    def __str__(self):
+        return "[" + " ".join(f"{x:.2f}" for x in self) + "]"
+
 
 
