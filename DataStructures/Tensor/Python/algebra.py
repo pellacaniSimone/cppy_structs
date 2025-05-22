@@ -333,7 +333,6 @@ class Matrix(GenericTensor):
     # Numeric should be here 
 
     def to_graph(self, weighted=True) :
-        print("NAME HERE",__name__)
         if __name__ != '__main__' or  __name__ =='lib.algebra' :
             import sys, os
             sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
@@ -346,7 +345,6 @@ class Matrix(GenericTensor):
             for j in range(self.cols):
                 g.add_vertex(i)
                 g.add_vertex(j)
-                print(i," -> ", j)
                 if weighted:
                     if self[i][j]!=0:
                         g.add(i,j,self[i][j])
