@@ -334,6 +334,7 @@ class Matrix(GenericTensor):
 
     def to_graph(self, weighted=True) :
         if __name__ != '__main__' or  __name__ =='lib.algebra' :
+            ## FIXME: remove imports below
             import sys, os
             sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
             from lib.simple_graph import Graph
