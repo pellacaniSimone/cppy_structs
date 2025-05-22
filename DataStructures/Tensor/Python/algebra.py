@@ -53,15 +53,17 @@ Example:
 
 
 """
-
-
 from array import array
 import random, os, math
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Dict, TypeVar
 
 
-
+T = TypeVar('T', bound='GenericTensor')
 Size = Union[List[int], Tuple[int, ...]]
+
+class Debug(Exception):
+    pass
+
 
 
 class GenericTensor(array):
@@ -179,35 +181,40 @@ class GenericTensor(array):
         return total
 
 
+    # Dot operations
     def __add__(self, B):
-        if not isinstance(B, GenericTensor):
-            return NotImplemented
-        if self.shape != B.shape:
-            raise ValueError("Shapes must match for addition")
-        summed = [A + B for A, B in zip(self, B)]
-        return type(self)(self.shape, data=summed)
-
+        """ Element-wise dot division.  """
+        if self.shape != B.shape:  raise ValueError("Shapes must match for addition")
+        def fun(a,b): return a+b
+        result = [fun(a,b) for a, b in zip(self, B)]
+        return type(self)(self.shape, data=result)
     def __sub__(self, B):
-        if not isinstance(B, GenericTensor):
-            return NotImplemented
-        if self.shape != B.shape:
-            raise ValueError("Shapes must match for addition")
-        subbed = [A - B for A, B in zip(self, B)]
-        return type(self)(self.shape, data=subbed)
-
+        """ Element-wise dot subtraction.  """
+        if self.shape != B.shape:  raise ValueError("Shapes must match for subtraction")
+        def fun(a,b): return a-b
+        result = [fun(a,b) for a, b in zip(self, B)]
+        return type(self)(self.shape, data=result)
+    def __neg__(self: T) -> T:
+        """ Element-wise dot negation.  """
+        def fun(a): return - a
+        result = [fun(a) for a in self]
+        return type(self)(self.shape, data=result)
+    def __div__(self: T, B) -> T:
+        """ Element-wise dot division."""
+        if self.shape != B.shape:  raise ValueError("Shapes must match for subtraction")
+        def fun(a,b): return a/b if b else None
+        result = [fun(a,b) for a, b in zip(self, B)]
+        return type(self)(self.shape, data=result)
     def __mul__(self, B: Union[float, int, "GenericTensor"]) -> "GenericTensor":
-        """
-        Element-wise dot multiplication.
-        """
-        if isinstance(B, (int, float)):
-            result_data = [x * B for x in self]
-        elif isinstance(B, GenericTensor):
-            if self.shape != B.shape:
-                raise ValueError("Shapes must match for element-wise multiplication")
-            result_data = [x * y for x, y in zip(self, B)]
-        else:
-            raise TypeError("Unsupported operand type(s) for *")
-        return type(self)(self.shape, data=result_data)
+        """ Element-wise dot multiplication."""
+        def fun(a,b): return a*b 
+        if isinstance(B, GenericTensor):
+            if self.shape != B.shape:  raise ValueError("Shapes must match for subtraction")
+            result = [fun(a,b) for a, b in zip(self, B)]
+            return type(self)(self.shape, data=result)
+        else:  # Scalar
+            result = [fun(a,B) for a in self]
+            return type(self)(self.shape, data=result)
 
     def __matmul__(self, B: "GenericTensor") -> "GenericTensor":
         A_shape = self.shape
@@ -288,6 +295,8 @@ class Tensor(GenericTensor):
 
 class Matrix(GenericTensor):
     def __new__(cls, shape, command: str = 'zeros', data: List[float] = None) -> "Matrix":
+        #if len(shape) != 2:
+        #    raise ValueError("Matrix must be 2-dimensional")
         return super().__new__(cls, shape, command, data)
     
     def __add__(self, B) -> 'Matrix':
@@ -297,7 +306,6 @@ class Matrix(GenericTensor):
     def __mul__(self, B: Union[float, int, "Matrix"]) -> 'Matrix':
         result = super().__mul__(B)
         return Matrix(result.shape, data=list(result))
-
 
     @classmethod
     def __reshape__(cls, T: "Matrix" = None) -> 'Matrix':
@@ -325,7 +333,13 @@ class Matrix(GenericTensor):
     # Numeric should be here 
 
     def to_graph(self, weighted=True) :
-        from simple_graph import Graph
+        print("NAME HERE",__name__)
+        if __name__ != '__main__' or  __name__ =='lib.algebra' :
+            import sys, os
+            sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
+            from lib.simple_graph import Graph
+        else: 
+            from simple_graph import Graph
         """Return graph"""
         g = Graph()
         for i in range(self.rows):
@@ -333,8 +347,12 @@ class Matrix(GenericTensor):
                 g.add_vertex(i)
                 g.add_vertex(j)
                 print(i," -> ", j)
-                if self[i][j]!=0:
-                    g.add(i,j,self[i][j])
+                if weighted:
+                    if self[i][j]!=0:
+                        g.add(i,j,self[i][j])
+                else:
+                    if self[i][j]!=0:
+                        g.add(i,j,1)
         return g
 
 
@@ -373,6 +391,5 @@ class Vector(GenericTensor):
         
     def __str__(self):
         return "[" + " ".join(f"{x:.2f}" for x in self) + "]"
-
 
 
