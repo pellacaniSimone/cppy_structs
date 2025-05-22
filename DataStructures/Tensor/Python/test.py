@@ -1,9 +1,5 @@
-import unittest
-import math
-import random
-import os
-import tempfile
-from typing import List
+
+import tempfile,os,random,unittest
 from algebra import Tensor,Vector,Matrix
 
 class TestTensorCreation(unittest.TestCase):
@@ -83,9 +79,9 @@ class TestTensorBasicOperations(unittest.TestCase):
         
     def test_indexing(self):
         """Test tensor indexing"""
-        # Linear indexing
-        self.assertEqual(self.t1[0], 1.0)
-        self.assertEqual(self.t1[3], 4.0)
+        # Square indexing
+        self.assertEqual(self.t1[0][0], 1.0)
+        self.assertEqual(self.t1[1][0], 4.0)
         
         # Tuple indexing
         self.assertEqual(self.t1[0, 0], 1.0)
@@ -94,10 +90,10 @@ class TestTensorBasicOperations(unittest.TestCase):
         
         # Test invalid indexing
         with self.assertRaises(IndexError):
-            self.t1[2, 0]  # Out of bounds
+            self.t1[2][0]  # Out of bounds
             
         with self.assertRaises(IndexError):
-            self.t1[0, 3]  # Out of bounds
+            self.t1[0][3]  # Out of bounds
             
         with self.assertRaises(IndexError):
             self.t1[0, 0, 0]  # Too many indices
@@ -106,14 +102,18 @@ class TestTensorBasicOperations(unittest.TestCase):
         """Test setting tensor values"""
         t = Tensor([2, 3], command="zeros")
         t[0, 0] = 5.0
+        self.assertEqual(t[0][0], 5.0)
+
+        t = Tensor([2, 3], command="zeros")
+        t[0 ,0] = 5.0
         self.assertEqual(t[0, 0], 5.0)
-        
+
         t[1, 2] = 7.0
         self.assertEqual(t[1, 2], 7.0)
         
         # Test invalid setitem
         with self.assertRaises(IndexError):
-            t[2, 0] = 10.0  # Out of bounds
+            t[2,0] = 10.0  # Out of bounds
             
     def test_addition(self):
         """Test tensor addition"""
@@ -312,7 +312,8 @@ class TestMatrixVectorClasses(unittest.TestCase):
         
         # Matrix @ Vector
         result = M @ v
-        self.assertTrue(isinstance(result, Tensor))
+        print(type(result))
+        self.assertTrue(isinstance(result, Matrix)) # is a  Vector, 
         self.assertEqual(result.shape, (2,))
         self.assertEqual(list(result), [50.0, 122.0])
 
@@ -416,8 +417,7 @@ class TestIntegrationScenarios(unittest.TestCase):
         self.assertEqual(C.shape, (size, size))
         print(f"Large {size}x{size} matrix multiplication took {end_time - start_time:.4f} seconds")
 
-
-from graph import Graph,DAG
+from simple_graph import Graph,DAG
 
 class TestGraph(unittest.TestCase):
     def setUp(self):
@@ -469,15 +469,13 @@ class TestGraph(unittest.TestCase):
         mat = self.g.to_matrix()
         print(mat)
         self.assertIsInstance(mat, Matrix)
-        # Verifica alcuni valori della matrice
         self.assertEqual(mat[0][1], 1.0)
         self.assertEqual(mat[1][2], 2.0)
-        self.assertEqual(mat[2][1], 2.0)  # Perché è un edge bidirezionale
+        self.assertEqual(mat[2][1], 2.0)  
 
     def test_dag_property(self):
         self.assertTrue(self.dag.is_dag())
         
-        # Aggiungiamo un ciclo per testare
         self.dag.add_arc(2, 0, 3.0, 'cycle')
         self.assertFalse(self.dag.is_dag())
 
@@ -486,8 +484,6 @@ class TestGraph(unittest.TestCase):
         self.assertIn("Graph - Size: 3", s)
         self.assertIn("0 --([(1.0, 'a')])--> 1", s)
         self.assertIn("1 --([(2.0, 'b')])--> 2", s)
-
-
 
 
 # Run all tests
