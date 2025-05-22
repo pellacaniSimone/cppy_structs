@@ -67,7 +67,6 @@ Example:
 
 
 
-
 class GraphMixin:
     # used here results in shared mem var
     def __init__(self):
@@ -127,16 +126,26 @@ class GraphMixin:
             for (u, v), edlis in self.edges.items():
                 if u == k:
                     if weighted:
-                        mat[k][v]=edlis[0]
+                        mat[k , v]=edlis[0][0]
                     else:
-                        mat[k][v]=1
+                        mat[k , v]=1
         return mat
 
 
 class Graph(GraphMixin):
     pass
 
-class DAG(GraphMixin):
+class WeightedGraph(GraphMixin):
+    pass
+
+class UndirectedGraph(GraphMixin):
+    def add(self, u: int, v: int, w: float, tag: str = ''):
+        super().add(u, v, w, tag, directed=False)
+
+class AcyclicGraph(GraphMixin):
+    pass
+
+class DAG(AcyclicGraph):
     """Directed Acyclic Graph"""
     def is_dag(self) -> bool:
         visited = set()
@@ -161,3 +170,55 @@ class DAG(GraphMixin):
                     return False
         return True
   
+
+class Tree(AcyclicGraph):
+    def is_tree(self) -> bool:
+        indegree = {v: 0 for v in self.vertex}
+        for (u, v) in self.edges:  indegree[v] += 1
+        roots = [v for v, d in indegree.items() if d == 0]
+        if len(roots) != 1: return False
+        root = roots[0]
+        visited = set()
+        def dfs(v):
+            visited.add(v)
+            for (u, w) in self.edges:
+                if u == v and w not in visited:
+                    dfs(w)
+        dfs(root)
+        return len(visited) == len(self.vertex)
+
+
+class Forest(Tree):
+    """Forest: set of Tree"""
+
+from collections import deque
+
+class BipartiteGraph(GraphMixin):
+
+    def add(self, u: int, v: int, w: float, tag: str = '', directed: bool = False):
+        super().add(u, v, w, tag, directed)
+        if not self.is_bipartite():
+            self.del_edge(u, v, directed)
+            raise ValueError(f"Adding edge ({u},{v}) breaks bipartiteness")
+
+    def is_bipartite(self) -> bool:
+        color = {}
+        for start in self.vertex:
+            if start not in color:
+                queue = deque([start])
+                color[start] = 0
+                while queue:
+                    u = queue.popleft()
+                    for (x, y) in self.edges:
+                        if x == u: v = y
+                        elif y == u: v = x
+                        else: continue
+                        if v not in color:
+                            color[v] = 1 - color[u]
+                            queue.append(v)
+                        elif color[v] == color[u]:  return False
+        self.left = {k for k, v in color.items() if v == 0}
+        self.right = {k for k, v in color.items() if v == 1}
+        return True
+
+
