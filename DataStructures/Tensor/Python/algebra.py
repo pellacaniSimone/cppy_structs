@@ -183,7 +183,7 @@ class GenericTensor(array):
 
     # Dot operations
     def __add__(self, B):
-        """ Element-wise dot division.  """
+        """ Element-wise dot addition.  """
         if self.shape != B.shape:  raise ValueError("Shapes must match for addition")
         def fun(a,b): return a+b
         result = [fun(a,b) for a, b in zip(self, B)]
@@ -201,7 +201,7 @@ class GenericTensor(array):
         return type(self)(self.shape, data=result)
     def __div__(self: T, B) -> T:
         """ Element-wise dot division."""
-        if self.shape != B.shape:  raise ValueError("Shapes must match for subtraction")
+        if self.shape != B.shape:  raise ValueError("Shapes must match for division")
         def fun(a,b): return a/b if b else None
         result = [fun(a,b) for a, b in zip(self, B)]
         return type(self)(self.shape, data=result)
@@ -209,7 +209,7 @@ class GenericTensor(array):
         """ Element-wise dot multiplication."""
         def fun(a,b): return a*b 
         if isinstance(B, GenericTensor):
-            if self.shape != B.shape:  raise ValueError("Shapes must match for subtraction")
+            if self.shape != B.shape:  raise ValueError("Shapes must match for multiplication")
             result = [fun(a,b) for a, b in zip(self, B)]
             return type(self)(self.shape, data=result)
         else:  # Scalar
