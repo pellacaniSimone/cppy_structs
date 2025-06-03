@@ -521,16 +521,14 @@ class GraphMixin:
     def __str__(self) -> str:
         out = f"Graph - Size: {self.n}, Density: {self.d:.2f}\n"
         out += "Vertices:\n"
-        for k, tag in self.V.items():
-            out += f"{tag if tag else k}"
-            for u,v in self:
-                edlis=self.E[(u,v)]
-                if u == k:
-                    term = self.V[v] if self.V[v] else v
-                    if edlis:
-                        out += f" --({edlis})--> {term}"
-                    else:
-                        out += f" --> {term}"
+        for k in self.V:
+            out += f"{self.V[k] if self.V[k] is not None else k}"
+            neighbors = self._get_neighbors(k)
+            if neighbors:
+                for p in neighbors:
+                    edge_key = self.__create_pair(k, p)
+                    if edge_key in self.E:
+                        out += f" --({self.E[edge_key]})--> {self.V[p] if self.V[k] is not None else p}"
             out += "\n"
         return out
 
