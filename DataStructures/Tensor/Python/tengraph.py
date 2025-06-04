@@ -437,7 +437,7 @@ class GraphMixin:
             for v in range(n): 
                 self.add_vertex(v)
 
-    def __len__(self): return len(self.V) if self.n == 0 or self.n == None else self.n
+    def __len__(self): return self.n
     def __update_density(self): self.d = len(self.E) / len(self) if self.V else 0
     def __update_size(self, delta: int): self.n += delta ;  self.__update_density()
     def __add_edge_data(self, edge_key:Pair, data: dict):
@@ -458,7 +458,7 @@ class GraphMixin:
     def __get_edge_data(self, edge_key:Pair,key:str):
         return self.E[edge_key][key] if edge_key in self else None
 
-    def add_vertex(self, v: int, tag: str = ''):
+    def add_vertex(self, v: int, tag: str = None):
         if v not in self.V: self.V[v] = tag ; self.__update_size(1)
 
     def get_edge_weight(self, u: int, v: int , ) -> float:
